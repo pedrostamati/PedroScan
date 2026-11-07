@@ -1,1 +1,48 @@
+name: Compilar APK de PedroScan
 
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar archivos del repositorio
+        uses: actions/checkout@v4
+
+      - name: Preparar archivos del proyecto
+        run: |
+          if [ ! -f "settings.gradle" ]; then
+            ZIPFILE=$(find . -maxdepth 2 -name "*.zip" | head -n 1)
+            if [ -n "$ZIPFILE" ]; then
+              unzip -q -o "$ZIPFILE" -d .
+            fi
+            SUBDIR=$(find . -maxdepth 2 -name "settings.gradle" -printf "%h\n" | head -n 1)
+            if [ -n "$SUBDIR" ] && [ "$SUBDIR" != "." ]; then
+              cp -r "$SUBDIR"/* .
+            fi
+          fi
+
+      - name: Configurar Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Configurar Gradle
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: '8.5'
+
+      - name: Compilar APK (PedroScan.apk)
+        run: gradle assembleRelease --no-daemon
+
+      - name: Preparar PedroScan.apk
+        run: cp app/build/outputs/apk/release/*.apk ./PedroScan.apk
+
+      - name: Subir PedroScan.apk listo para descargar
+        uses: actions/upload-artifact@v4
+        with:
+          name: PedroScan-APK
+          path: ./PedroScan.apk
